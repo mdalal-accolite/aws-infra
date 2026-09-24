@@ -1,0 +1,141 @@
+name: Terraform Plan
+
+# Plans ONLY the components whose files changed in this pull request.
+# Touch stacks/40-data -> one plan runs, for 40-data. Nothing else is
+# refreshed, so a five-minute run becomes a thirty-second one.
+
+on:
+  pull_request:
+    paths:
+      - "stacks/**"
+      - "modules/**"
+      - "config/**"
+      - "envs/**"
+      - ".github/workflows/terraform-*.yml"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Work out which components this PR actually affects.
+  # ---------------------------------------------------------------------------
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.pick.outputs.components }}
+      any: ${{ steps.pick.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed components
+        id: pick
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"; echo "$CHANGED"
+
+          ALL=$(ls -d stacks/*/ | xargs -n1 basename | sort)
+
+          # config/ or envs/ affect every component; so does a workflow change.
+          if echo "$CHANGED" | grep -qE '^(config/|envs/|\.github/workflows/terraform-)'; then
+            echo "Shared config changed -> planning every component"
+            SELECTED="$ALL"
+          else
+            SELECTED=""
+            # 1. directly edited stacks
+            for c in $ALL; do
+              if echo "$CHANGED" | grep -q "^stacks/$c/"; then SELECTED="$SELECTED $c"; fi
+            done
+            # 2. stacks that consume an edited module
+            for m in $(echo "$CHANGED" | grep '^modules/' | cut -d/ -f2 | sort -u); do
+              for c in $ALL; do
+                if grep -rq "modules/$m\"" "stacks/$c/" 2>/dev/null; then SELECTED="$SELECTED $c"; fi
+              done
+            done
+            SELECTED=$(echo "$SELECTED" | tr ' ' '\n' | grep -v '^$' | sort -u)
+          fi
+
+          echo "Selected: $SELECTED"
+          JSON=$(echo "$SELECTED" | jq -R -s -c 'split("\n") | map(select(length>0))')
+          echo "components=$JSON" >> "$GITHUB_OUTPUT"
+          if [ "$JSON" = "[]" ]; then echo "any=false" >> "$GITHUB_OUTPUT"; else echo "any=true" >> "$GITHUB_OUTPUT"; fi
+
+  # ---------------------------------------------------------------------------
+  # One plan job per affected component, per environment.
+  # ---------------------------------------------------------------------------
+  plan:
+    needs: discover
+    if: needs.discover.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [stage]
+        component: ${{ fromJSON(needs.discover.outputs.components) }}
+
+    name: plan ${{ matrix.environment }}/${{ matrix.component }}
+
+    defaults:
+      run:
+        working-directory: stacks/${{ matrix.component }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.0
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ matrix.environment == 'prod' && vars.AWS_TF_PLAN_ROLE_PROD || vars.AWS_TF_PLAN_ROLE_STAGE }}
+          aws-region: us-east-1
+
+      - name: Init
+        run: |
+          terraform init -input=false \
+            -backend-config=../../envs/${{ matrix.environment }}.backend.hcl \
+            -backend-config="key=${{ matrix.environment }}/${{ matrix.component }}.tfstate"
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -input=false -no-color -lock=false \
+            -var="environment=${{ matrix.environment }}" > plan.txt 2>&1
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          tail -c 50000 plan.txt
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const c = '${{ matrix.component }}';
+            const e = '${{ matrix.environment }}';
+            let body = 'Plan output unavailable.';
+            try { body = fs.readFileSync(`stacks/${c}/plan.txt`, 'utf8'); } catch (err) {}
+            if (body.length > 50000) body = body.slice(-50000);
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Plan — \`${e}\` / \`${c}\`\n\n\`\`\`hcl\n${body}\n\`\`\``
+            });
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exitcode != '0'
+        run: exit 1

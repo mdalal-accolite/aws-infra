@@ -1,0 +1,15 @@
+# cp terraform.tfvars.prod.example terraform.tfvars   (while working on PROD)
+environment = "prod"
+region      = "us-east-1"
+github_org  = "ScriblOrg"
+github_repo = "scribl-infra"
+
+plan_subjects = [
+  "repo:ScriblOrg/scribl-infra:pull_request",
+]
+
+# Prod apply ONLY through the protected GitHub Environment named "prod".
+# Deliberately no refs/heads/main entry here.
+apply_subjects = [
+  "repo:ScriblOrg/scribl-infra:environment:prod",
+]

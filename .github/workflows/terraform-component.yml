@@ -1,0 +1,94 @@
+name: Terraform Component (manual)
+
+# Run one component on demand - for the first build, for prod, or for a
+# deliberate re-apply. This is also how you bring up a brand new environment:
+# run it once per component, in the order they are listed in the dropdown.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        required: true
+        type: choice
+        options: [stage, prod]
+      component:
+        description: Component to run
+        required: true
+        type: choice
+        options:
+          - 10-network
+          - 20-edge
+          - 30-registry
+          - 32-messaging
+          - 34-identity
+          - 36-secrets
+          - 38-email
+          - 40-data
+          - 50-iam
+          - 60-eks
+          - 70-tools
+          - 80-api
+          - 90-vpn
+      action:
+        description: What to do
+        required: true
+        type: choice
+        options: [plan, apply, destroy]
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-${{ inputs.environment }}-${{ inputs.component }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    name: ${{ inputs.action }} ${{ inputs.environment }}/${{ inputs.component }}
+
+    defaults:
+      run:
+        working-directory: stacks/${{ inputs.component }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.0
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: >-
+            ${{ inputs.action == 'plan'
+                && (inputs.environment == 'prod' && vars.AWS_TF_PLAN_ROLE_PROD || vars.AWS_TF_PLAN_ROLE_STAGE)
+                || (inputs.environment == 'prod' && vars.AWS_TF_APPLY_ROLE_PROD || vars.AWS_TF_APPLY_ROLE_STAGE) }}
+          aws-region: us-east-1
+
+      - name: Init
+        run: |
+          terraform init -input=false \
+            -backend-config=../../envs/${{ inputs.environment }}.backend.hcl \
+            -backend-config="key=${{ inputs.environment }}/${{ inputs.component }}.tfstate"
+
+      - name: Plan
+        if: inputs.action == 'plan'
+        run: terraform plan -input=false -var="environment=${{ inputs.environment }}"
+
+      - name: Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -input=false -auto-approve -var="environment=${{ inputs.environment }}"
+
+      - name: Destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -input=false -auto-approve -var="environment=${{ inputs.environment }}"
+
+      - name: Outputs
+        if: inputs.action == 'apply'
+        run: terraform output

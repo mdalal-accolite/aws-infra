@@ -1,0 +1,27 @@
+# Terraform
+**/.terraform/*
+**/.terraform.old/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfplan
+tfplan
+.terraform.lock.hcl.bak
+
+# Bootstrap keeps LOCAL state on purpose - do not ignore it
+!bootstrap/terraform.tfstate
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

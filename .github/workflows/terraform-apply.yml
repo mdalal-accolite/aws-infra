@@ -1,0 +1,120 @@
+name: Terraform Apply
+
+# Applies ONLY the components that changed, in dependency order.
+# The ordering matters: 40-data reads 10-network's state, so network must be
+# applied first if both changed in the same merge.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stacks/**"
+      - "modules/**"
+      - "config/**"
+      - "envs/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-apply-stage
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.pick.outputs.components }}
+      any: ${{ steps.pick.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed components
+        id: pick
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.before }}" ] && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")
+          else
+            CHANGED=$(git show --name-only --pretty=format: "${{ github.sha }}")
+          fi
+          echo "Changed files:"; echo "$CHANGED"
+
+          ALL=$(ls -d stacks/*/ | xargs -n1 basename | sort)
+
+          if echo "$CHANGED" | grep -qE '^(config/|envs/)'; then
+            SELECTED="$ALL"
+          else
+            SELECTED=""
+            for c in $ALL; do
+              if echo "$CHANGED" | grep -q "^stacks/$c/"; then SELECTED="$SELECTED $c"; fi
+            done
+            for m in $(echo "$CHANGED" | grep '^modules/' | cut -d/ -f2 | sort -u); do
+              for c in $ALL; do
+                if grep -rq "modules/$m\"" "stacks/$c/" 2>/dev/null; then SELECTED="$SELECTED $c"; fi
+              done
+            done
+            SELECTED=$(echo "$SELECTED" | tr ' ' '\n' | grep -v '^$' | sort -u)
+          fi
+
+          # sort -u already puts them in numeric-prefix order: 10, 20, 30, 32...
+          echo "Selected (in order): $SELECTED"
+          JSON=$(echo "$SELECTED" | jq -R -s -c 'split("\n") | map(select(length>0))')
+          echo "components=$JSON" >> "$GITHUB_OUTPUT"
+          if [ "$JSON" = "[]" ]; then echo "any=false" >> "$GITHUB_OUTPUT"; else echo "any=true" >> "$GITHUB_OUTPUT"; fi
+
+  apply:
+    needs: discover
+    if: needs.discover.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    environment: stage
+    strategy:
+      # Sequential, so dependency order is respected.
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        component: ${{ fromJSON(needs.discover.outputs.components) }}
+
+    name: apply stage/${{ matrix.component }}
+
+    defaults:
+      run:
+        working-directory: stacks/${{ matrix.component }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.0
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TF_APPLY_ROLE_STAGE }}
+          aws-region: us-east-1
+
+      - name: Init
+        run: |
+          terraform init -input=false \
+            -backend-config=../../envs/stage.backend.hcl \
+            -backend-config="key=stage/${{ matrix.component }}.tfstate"
+
+      - name: Plan
+        run: terraform plan -input=false -var="environment=stage" -out=tfplan
+
+      - name: Apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Outputs
+        run: terraform output -json > outputs.json && cat outputs.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: outputs-stage-${{ matrix.component }}
+          path: stacks/${{ matrix.component }}/outputs.json
+          retention-days: 30

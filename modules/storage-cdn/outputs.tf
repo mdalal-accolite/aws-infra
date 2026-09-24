@@ -1,0 +1,9 @@
+output "app_bucket_name" { value = aws_s3_bucket.app.id }
+output "app_bucket_arn" { value = aws_s3_bucket.app.arn }
+output "data_bucket_name" { value = aws_s3_bucket.data.id }
+output "data_bucket_arn" { value = aws_s3_bucket.data.arn }
+output "cloudfront_distribution_id" { value = aws_cloudfront_distribution.app.id }
+output "cloudfront_distribution_arn" { value = aws_cloudfront_distribution.app.arn }
+output "cloudfront_domain_name" { value = aws_cloudfront_distribution.app.domain_name }
+output "waf_web_acl_arn" { value = var.enable_waf ? aws_wafv2_web_acl.cloudfront[0].arn : null }
+output "bucket_suffix" { value = local.suffix }
