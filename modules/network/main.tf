@@ -191,6 +191,7 @@ resource "aws_security_group" "vpc_endpoints" {
   tags = merge(var.tags, { Name = "${var.name_prefix}-vpce-sg" })
 }
 
+
 resource "aws_security_group" "rds" {
   name        = "${var.name_prefix}-db-sg"
   description = "Postgres access from inside the VPC only"
@@ -204,6 +205,14 @@ resource "aws_security_group" "rds" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  ingress {
+    description = "Postgres from within the VPN"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.110.0.0/16"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -211,7 +220,9 @@ resource "aws_security_group" "rds" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, { Name = "${var.name_prefix}-db-sg" })
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-db-sg"
+  })
 }
 
 resource "aws_security_group" "rds_proxy" {
@@ -227,6 +238,14 @@ resource "aws_security_group" "rds_proxy" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  ingress {
+    description = "Postgres from within the VPN"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["10.110.0.0/16"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -234,8 +253,11 @@ resource "aws_security_group" "rds_proxy" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, { Name = "${var.name_prefix}-db-proxy-sg" })
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-db-proxy-sg"
+  })
 }
+
 
 resource "aws_security_group" "redis" {
   name        = "${var.name_prefix}-redis-sg"
@@ -260,6 +282,7 @@ resource "aws_security_group" "redis" {
   tags = merge(var.tags, { Name = "${var.name_prefix}-redis-sg" })
 }
 
+
 resource "aws_security_group" "ec2_tools" {
   name        = "${var.name_prefix}-ec2"
   description = "Tools host (KiwiTCMS). No public ingress - reachable from inside the VPC and from admin CIDRs via VPN."
@@ -267,26 +290,18 @@ resource "aws_security_group" "ec2_tools" {
 
   ingress {
     description = "Web UI from within the VPC"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = [var.vpc_cidr]
   }
 
   ingress {
-    description = "Alt web UI from within the VPC"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "HTTPS from within the VPC"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    description = ""
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["10.110.0.0/16"]
   }
 
   ingress {
@@ -294,18 +309,7 @@ resource "aws_security_group" "ec2_tools" {
     from_port   = -1
     to_port     = -1
     protocol    = "icmp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  dynamic "ingress" {
-    for_each = length(var.admin_cidr_blocks) > 0 ? [1] : []
-    content {
-      description = "RDP from named admin CIDRs"
-      from_port   = 3389
-      to_port     = 3389
-      protocol    = "tcp"
-      cidr_blocks = var.admin_cidr_blocks
-    }
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -315,8 +319,11 @@ resource "aws_security_group" "ec2_tools" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, { Name = "${var.name_prefix}-ec2" })
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-ec2"
+  })
 }
+
 
 resource "aws_security_group" "client_vpn" {
   name        = "${var.name_prefix}-vpn-sg"
