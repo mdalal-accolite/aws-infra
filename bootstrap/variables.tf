@@ -19,7 +19,7 @@ variable "github_org" {
 }
 
 variable "github_repo" {
-  description = "e.g. scribl-infra"
+  description = "e.g. Infra-Scribl"
   type        = string
 }
 
@@ -28,7 +28,7 @@ variable "plan_subjects" {
     OIDC subjects allowed to run `terraform plan` (read-only).
     Typically pull requests: repo:ORG/REPO:pull_request
   EOT
-  type = list(string)
+  type        = list(string)
 }
 
 variable "apply_subjects" {
@@ -38,7 +38,7 @@ variable "apply_subjects" {
       repo:ORG/REPO:environment:stage
       repo:ORG/REPO:environment:prod
   EOT
-  type = list(string)
+  type        = list(string)
 }
 
 variable "create_oidc_provider" {

@@ -6,13 +6,17 @@ accounts. This is the complete answer.
 ## The shape of it
 
 ```
-GitHub repo: ScriblOrg/scribl-infra
+GitHub repo: ScriblOrg/Infra-Scribl
    │
    │  a workflow run requests an OIDC token from GitHub.
-   │  the token contains a "sub" claim describing exactly what is running:
-   │      repo:ScriblOrg/scribl-infra:pull_request
-   │      repo:ScriblOrg/scribl-infra:ref:refs/heads/main
-   │      repo:ScriblOrg/scribl-infra:environment:prod
+   │  the token contains a "sub" claim describing exactly what is running.
+   │  This repo (and scribl-mobile-app) has GitHub's "immutable subject" OIDC
+   │  customization enabled - Settings -> Actions -> General -> subject claims,
+   │  or `gh api repos/<org>/<repo>/actions/oidc/customization/sub` - which
+   │  replaces the plain repo:ORG/REPO prefix with repo:ORG@ORG_ID/REPO@REPO_ID:
+   │      repo:ScriblOrg@129197376/Infra-Scribl@1371735174:pull_request
+   │      repo:ScriblOrg@129197376/Infra-Scribl@1371735174:ref:refs/heads/main
+   │      repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:prod
    │
    ├──────────────────────────► STAGE AWS ACCOUNT (419717495525)
    │                              OIDC provider: token.actions.githubusercontent.com
@@ -207,22 +211,34 @@ The namespace scoping matters. This role can roll out deployments in `scribl` an
 The inventory flags `GitHubActions-ECR-Push-Role`, which trusts `repo:ScriblOrg/*` — **any**
 repository in the organisation. Any repo anyone creates in that org can push images to your ECR.
 
-This repo does not reproduce it. Set `github_allowed_subjects` to full, explicit subjects:
+This repo does not reproduce it. Set `github_allowed_subjects` to full, explicit subjects —
+**and check `gh api repos/<org>/<repo>/actions/oidc/customization/sub` first**, since a
+repo with the immutable-subject feature on (both `Infra-Scribl` and `scribl-mobile-app` do)
+needs the `repo:ORG@ORG_ID/REPO@REPO_ID` prefix, not the plain one:
 
 ```hcl
-# good — a specific repo, a specific branch or environment
+# good — a specific repo, a specific branch or environment, correct immutable-subject prefix
 github_allowed_subjects = [
-  "repo:ScriblOrg/scribl-mobile-app:ref:refs/heads/main",
-  "repo:ScriblOrg/scribl-mobile-app:environment:stage",
+  "repo:ScriblOrg@129197376/scribl-mobile-app@1353806374:ref:refs/heads/main",
+  "repo:ScriblOrg@129197376/scribl-mobile-app@1353806374:environment:stage",
 ]
 
 # bad — any repo in the org, any branch, any fork's PR
 github_allowed_subjects = ["repo:ScriblOrg/*"]
+
+# also bad — right repo, wrong prefix. Doesn't error, just never matches (see below).
+github_allowed_subjects = ["repo:ScriblOrg/scribl-mobile-app:environment:stage"]
 ```
 
 The condition operator is `StringLike`, so `*` works but should only appear where you actually
 intend a wildcard. And after you finish Phase 9, consider deleting the old broad role from the
 dev account.
+
+A plain-prefix subject on a repo with immutable-subject enabled doesn't fail at `terraform
+apply` — it silently never matches, and GitHub Actions fails much later with `Not authorized
+to perform sts:AssumeRoleWithWebIdentity`. If you hit that error, check the OIDC customization
+endpoint above and CloudTrail's `AssumeRoleWithWebIdentity` events (`userIdentity.userName`
+shows the token's actual `sub` claim) before assuming it's a typo in the org/repo name.
 
 ---
 

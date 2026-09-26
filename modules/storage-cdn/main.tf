@@ -333,6 +333,36 @@ resource "aws_cloudfront_distribution" "app" {
   depends_on = [aws_s3_bucket_ownership_controls.logs]
 }
 
+# Without this, the OAC above has no actual permission to read the bucket -
+# every request comes back "Access Denied" regardless of the distribution or
+# bucket public-access settings, since the bucket itself denies everyone but
+# its owner and this one scoped grant.
+data "aws_iam_policy_document" "app_bucket_oac" {
+  statement {
+    sid    = "AllowCloudFrontServicePrincipal"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.app.arn}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.app.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "app" {
+  bucket = aws_s3_bucket.app.id
+  policy = data.aws_iam_policy_document.app_bucket_oac.json
+}
+
 ###############################################################################
 # WAF (CLOUDFRONT scope - must be created in us-east-1)
 ###############################################################################

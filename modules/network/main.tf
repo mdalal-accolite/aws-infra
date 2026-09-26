@@ -205,12 +205,15 @@ resource "aws_security_group" "rds" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  ingress {
-    description = "Postgres from within the VPN"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["10.110.0.0/16"]
+  dynamic "ingress" {
+    for_each = var.vpn_client_cidr_block == "" ? [] : [var.vpn_client_cidr_block]
+    content {
+      description = "Postgres from within the VPN"
+      from_port   = 5432
+      to_port     = 5432
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
   }
 
   egress {
@@ -238,12 +241,15 @@ resource "aws_security_group" "rds_proxy" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  ingress {
-    description = "Postgres from within the VPN"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["10.110.0.0/16"]
+  dynamic "ingress" {
+    for_each = var.vpn_client_cidr_block == "" ? [] : [var.vpn_client_cidr_block]
+    content {
+      description = "Postgres from within the VPN"
+      from_port   = 5432
+      to_port     = 5432
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
   }
 
   egress {
@@ -296,12 +302,15 @@ resource "aws_security_group" "ec2_tools" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  ingress {
-    description = ""
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["10.110.0.0/16"]
+  dynamic "ingress" {
+    for_each = var.vpn_client_cidr_block == "" ? [] : [var.vpn_client_cidr_block]
+    content {
+      description = "All traffic from within the VPN"
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = [ingress.value]
+    }
   }
 
   ingress {
@@ -310,6 +319,28 @@ resource "aws_security_group" "ec2_tools" {
     to_port     = -1
     protocol    = "icmp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  dynamic "ingress" {
+    for_each = length(var.admin_cidr_blocks) == 0 ? [] : [1]
+    content {
+      description = "SSH from admin CIDRs"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = var.admin_cidr_blocks
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = length(var.admin_cidr_blocks) == 0 ? [] : [1]
+    content {
+      description = "RDP from admin CIDRs"
+      from_port   = 3389
+      to_port     = 3389
+      protocol    = "tcp"
+      cidr_blocks = var.admin_cidr_blocks
+    }
   }
 
   egress {

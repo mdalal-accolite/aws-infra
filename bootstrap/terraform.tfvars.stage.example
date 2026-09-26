@@ -1,5 +1,5 @@
-# cp terraform.tfvars.prod.example terraform.tfvars   (while working on PROD)
-environment = "prod"
+# cp terraform.tfvars.stage.example terraform.tfvars   (while working on STAGE)
+environment = "stage"
 region      = "us-east-1"
 github_org  = "ScriblOrg"
 github_repo = "Infra-Scribl"
@@ -13,8 +13,8 @@ plan_subjects = [
   "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:pull_request",
 ]
 
-# Prod apply ONLY through the protected GitHub Environment named "prod".
-# Deliberately no refs/heads/main entry here.
+# Stage auto-applies on merge to main, or via the "stage" GitHub Environment.
 apply_subjects = [
-  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:prod",
+  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:ref:refs/heads/main",
+  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:stage",
 ]

@@ -60,10 +60,17 @@ locals {
 
       # --- github / ci ---
       github_org  = "ScriblOrg"
-      github_repo = "scribl-infra"
+      github_repo = "Infra-Scribl"
+      # Both Infra-Scribl and scribl-mobile-app have GitHub's "immutable subject"
+      # OIDC customization enabled (Settings -> Actions -> General -> subject
+      # claims), which replaces the mutable repo:ORG/REPO prefix with
+      # repo:ORG@ORG_ID/REPO@REPO_ID. Verify with
+      # `gh api repos/<org>/<repo>/actions/oidc/customization/sub` before ever
+      # editing these - a plain repo:ORG/REPO prefix silently never matches.
       github_allowed_subjects = [
-        "repo:ScriblOrg/scribl-infra:ref:refs/heads/main",
-        "repo:ScriblOrg/scribl-infra:environment:stage",
+        "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:ref:refs/heads/main",
+        "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:stage",
+        "repo:ScriblOrg@129197376/scribl-mobile-app@1353806374:environment:stage",
       ]
 
       # --- edge / identity ---
@@ -86,7 +93,7 @@ locals {
       # ("InvalidViewerCertificate"). So the alias below is only applied once
       # cloudfront_certificate_arn is non-empty. Until then the distribution
       # serves on its default *.cloudfront.net name.
-      cloudfront_certificate_arn = ""
+      cloudfront_certificate_arn = "arn:aws:acm:us-east-1:419717495525:certificate/9ca775ff-a27f-41cf-88d2-c6f21910fde6"
       cloudfront_aliases         = ["mweb.stage.scribl.co"]
       cloudfront_price_class     = "PriceClass_All"
       # DNS name of the k8s-created ADMIN API NLB. Empty = the /v1/admin/* and
@@ -150,9 +157,13 @@ locals {
       tools_public_key_openssh = ""
 
       github_org  = "ScriblOrg"
-      github_repo = "scribl-infra"
+      github_repo = "Infra-Scribl"
+      # See the stage block above - both repos have GitHub's immutable-subject
+      # OIDC customization enabled, so the prefix is repo:ORG@ORG_ID/REPO@REPO_ID,
+      # not the plain repo:ORG/REPO you'd otherwise expect.
       github_allowed_subjects = [
-        "repo:ScriblOrg/scribl-infra:environment:prod",
+        "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:prod",
+        "repo:ScriblOrg@129197376/scribl-mobile-app@1353806374:environment:prod",
       ]
 
       cognito_domain_prefix           = "scribl-prod-admin-auth"
@@ -201,7 +212,7 @@ locals {
   # guarantees the remote-state data sources point at the same bucket. Paste the
   # bootstrap output into that ONE file and everything follows.
   state_bucket = regex("(?m)^\\s*bucket\\s*=\\s*\"([^\"]+)\"",
-    file("${path.module}/../envs/${var.environment}.backend.hcl"))[0]
+  file("${path.module}/../envs/${var.environment}.backend.hcl"))[0]
 
   tags = {
     Project     = local.project

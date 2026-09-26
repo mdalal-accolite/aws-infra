@@ -89,12 +89,6 @@ data "aws_caller_identity" "current" {}
 module "iam" {
   source = "../../modules/iam"
 
-  name_prefix = module.config.name_prefix
-  account_id  = data.aws_caller_identity.current.account_id
-  region      = module.config.env.region
-
-  github_org              = module.config.env.github_org
-  github_repo             = module.config.env.github_repo
   github_allowed_subjects = module.config.env.github_allowed_subjects
 
   cognito_pool_arns = data.terraform_remote_state.identity.outputs.pool_arns
@@ -109,8 +103,8 @@ module "iam" {
 
   secret_arn_prefix = "arn:aws:secretsmanager:${module.config.env.region}:${data.aws_caller_identity.current.account_id}:secret:${module.config.secret_prefix}/*"
 
-  project                   = module.config.project
-  ses_identity_arn          = data.terraform_remote_state.email.outputs.ses_identity_arn
+  project          = module.config.project
+  ses_identity_arn = data.terraform_remote_state.email.outputs.ses_identity_arn
 
   tags = module.config.tags
 }

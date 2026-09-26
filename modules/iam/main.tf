@@ -87,18 +87,18 @@ resource "aws_iam_role_policy" "api_pod" {
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = [var.secret_arn_prefix]
       }
-    ],
-    var.ses_identity_arn == "" ? [] : [
-      {
-        Sid    = "SendEmailViaSes"
-        Effect = "Allow"
-        Action = [
-          "ses:SendEmail",
-          "ses:SendRawEmail",
-          "ses:SendTemplatedEmail",
-        ]
-        Resource = [var.ses_identity_arn]
-      }
+      ],
+      var.ses_identity_arn == "" ? [] : [
+        {
+          Sid    = "SendEmailViaSes"
+          Effect = "Allow"
+          Action = [
+            "ses:SendEmail",
+            "ses:SendRawEmail",
+            "ses:SendTemplatedEmail",
+          ]
+          Resource = [var.ses_identity_arn]
+        }
     ])
   })
 }

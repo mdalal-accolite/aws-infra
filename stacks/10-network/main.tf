@@ -47,6 +47,10 @@ module "network" {
   az_count           = module.config.env.az_count
   single_nat_gateway = module.config.env.single_nat_gateway
   admin_cidr_blocks  = module.config.env.admin_cidr_blocks
+  # Only open VPN-sourced ingress when a Client VPN endpoint actually exists for
+  # this environment - config always carries a CIDR value, but that alone
+  # doesn't mean 90-vpn has been applied.
+  vpn_client_cidr_block = module.config.env.enable_client_vpn ? module.config.env.vpn_client_cidr_block : ""
 
   tags = module.config.tags
 }
