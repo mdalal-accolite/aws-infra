@@ -1,20 +1,7 @@
-variable "name_prefix" { type = string }
 variable "project" {
   description = "Role names follow the dev pattern scribl-api-pod / scribl-github-*. Each environment is its own AWS account, so there is no name collision."
   type        = string
   default     = "scribl"
-}
-variable "account_id" { type = string }
-variable "region" { type = string }
-
-variable "github_org" {
-  description = "GitHub organisation or user that owns the repo, e.g. ScriblOrg"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "Repository name, e.g. scribl-mobile-app"
-  type        = string
 }
 
 variable "github_allowed_subjects" {

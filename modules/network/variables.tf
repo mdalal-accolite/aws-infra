@@ -26,6 +26,12 @@ variable "admin_cidr_blocks" {
   default     = []
 }
 
+variable "vpn_client_cidr_block" {
+  description = "This environment's Client VPN client CIDR, allowed to reach Postgres/tools-host ports. Leave empty if this environment has no Client VPN."
+  type        = string
+  default     = ""
+}
+
 variable "interface_endpoints" {
   description = "AWS service names for VPC interface endpoints (created in the private subnets)."
   type        = list(string)

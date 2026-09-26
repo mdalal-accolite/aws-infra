@@ -26,8 +26,8 @@ Three tables and four procedures.
 | # | File | Setting | Current | Set to |
 | --- | --- | --- | --- | --- |
 | 1 | `config/main.tf` | `github_org` (stage block) | `"ScriblOrg"` | your GitHub org |
-| 2 | `config/main.tf` | `github_repo` (stage block) | `"scribl-infra"` | the repo holding this code |
-| 3 | `config/main.tf` | `github_allowed_subjects` (stage block) | `repo:ScriblOrg/scribl-infra:...` | your org/repo, **both lines** |
+| 2 | `config/main.tf` | `github_repo` (stage block) | `"Infra-Scribl"` | the repo holding this code |
+| 3 | `config/main.tf` | `github_allowed_subjects` (stage block) | `repo:ScriblOrg@129197376/Infra-Scribl@1371735174:...` | your org/repo, **in this org's case using the immutable-subject prefix — see the warning below** |
 | 4 | `config/main.tf` | `cognito_domain_prefix` (stage block) | `"scribl-stage-admin-auth"` | keep it if globally free — **check first**, procedure D |
 | 5 | `bootstrap/terraform.tfvars` | `github_org`, `github_repo`, `plan_subjects`, `apply_subjects` | — | **this file does not exist yet.** Procedure A creates it. |
 
@@ -67,9 +67,37 @@ apply_subjects = [
 ]
 ```
 
-Those subject strings go straight into IAM trust policies. A typo means GitHub Actions fails to
-authenticate later with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, which is a
-confusing error to debug — so copy your org and repo name exactly, including capitalisation.
+**Before you copy that pattern, check whether your org uses GitHub's "immutable subject"
+OIDC customization** (Settings → Actions → General → subject claims, or
+`gh api repos/<org>/<repo>/actions/oidc/customization/sub`). If `use_immutable_subject` is
+`true`, the response's `sub_claim_prefix` (e.g.
+`repo:ScriblOrg@129197376/Infra-Scribl@1371735174`) *replaces* the plain `repo:YourOrg/YourRepo`
+prefix above — everything after the prefix (`:pull_request`, `:environment:stage`, etc.) stays
+the same. **This is exactly what ScriblOrg's repos use.** For this deployment, the tfvars above
+should actually read:
+
+```hcl
+environment = "stage"
+region      = "us-east-1"
+github_org  = "ScriblOrg"
+github_repo = "Infra-Scribl"
+
+plan_subjects = [
+  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:pull_request",
+]
+
+apply_subjects = [
+  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:ref:refs/heads/main",
+  "repo:ScriblOrg@129197376/Infra-Scribl@1371735174:environment:stage",
+]
+```
+
+A plain-prefix subject with the immutable-subject feature on doesn't error at apply time — it
+silently never matches. GitHub Actions fails much later with
+`Not authorized to perform sts:AssumeRoleWithWebIdentity`, which gives no hint that the prefix
+format itself is the problem. If you hit that error, check the OIDC customization endpoint
+above and CloudTrail's `AssumeRoleWithWebIdentity` events (the `userIdentity.userName` field
+shows the token's *actual* `sub` claim) before assuming it's a typo in the org/repo name.
 
 ---
 

@@ -85,8 +85,8 @@ resource "aws_db_instance" "this" {
   maintenance_window      = "sun:08:30-sun:09:30"
   copy_tags_to_snapshot   = true
 
-  deletion_protection      = var.db_deletion_protection
-  skip_final_snapshot      = var.db_skip_final_snapshot
+  deletion_protection       = var.db_deletion_protection
+  skip_final_snapshot       = var.db_skip_final_snapshot
   final_snapshot_identifier = var.db_skip_final_snapshot ? null : "${var.name_prefix}-db-final"
 
   monitoring_interval = 60
