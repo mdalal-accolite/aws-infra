@@ -70,6 +70,30 @@ resource "aws_iam_role_policy" "api_pod" {
         Resource = [var.data_bucket_arn]
       },
       {
+        # Push delivery (apps/api/src/notifications): register/self-heal device
+        # endpoints and publish to them. Platform applications are created out of
+        # band (docs/11-NOT-IN-TERRAFORM.md), so this is scoped to the account's
+        # SNS app/endpoint ARNs rather than to specific ones.
+        Sid      = "PushPlatformApplications"
+        Effect   = "Allow"
+        Action   = ["sns:CreatePlatformEndpoint"]
+        Resource = ["${var.sns_arn_prefix}:app/*"]
+      },
+      {
+        Sid    = "PushEndpoints"
+        Effect = "Allow"
+        Action = [
+          "sns:Publish",
+          "sns:GetEndpointAttributes",
+          "sns:SetEndpointAttributes",
+          "sns:DeleteEndpoint",
+        ]
+        Resource = ["${var.sns_arn_prefix}:endpoint/*"]
+      },
+      {
+        # DEPRECATED: the app moved push scheduling to BullMQ (scribl-mobile-app
+        # apps/api/src/scheduler). Kept until every environment runs that build,
+        # then removed together with stacks/32-messaging.
         Sid    = "PushNudgeQueue"
         Effect = "Allow"
         Action = [

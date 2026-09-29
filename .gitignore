@@ -25,3 +25,5 @@ tfplan
 .idea/
 .vscode/
 *.swp
+*.tfstate
+*.tfstate.*

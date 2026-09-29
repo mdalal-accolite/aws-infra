@@ -101,6 +101,7 @@ module "iam" {
   ecr_repository_arns         = data.terraform_remote_state.registry.outputs.repository_arns
   cloudfront_distribution_arn = data.terraform_remote_state.edge.outputs.cloudfront_distribution_arn
 
+  sns_arn_prefix    = "arn:aws:sns:${module.config.env.region}:${data.aws_caller_identity.current.account_id}"
   secret_arn_prefix = "arn:aws:secretsmanager:${module.config.env.region}:${data.aws_caller_identity.current.account_id}:secret:${module.config.secret_prefix}/*"
 
   project          = module.config.project

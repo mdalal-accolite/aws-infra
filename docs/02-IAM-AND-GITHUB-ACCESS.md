@@ -166,8 +166,18 @@ Created by `modules/iam` in each environment, alongside the infrastructure.
 | --- | --- |
 | Cognito self-service auth (SignUp, InitiateAuth, ForgotPassword, GetUser, …) | the two user pool ARNs |
 | `s3:PutObject/GetObject/HeadObject/DeleteObject` | `scribl-<env>-data-*/*` only |
-| `sqs:SendMessage/ReceiveMessage/DeleteMessage/GetQueueAttributes` | the push-nudge queue and its DLQ |
+| `sns:CreatePlatformEndpoint` | this account's SNS platform applications (`app/*`) |
+| `sns:Publish/GetEndpointAttributes/SetEndpointAttributes/DeleteEndpoint` | this account's SNS endpoints (`endpoint/*`) |
+| `sqs:SendMessage/ReceiveMessage/DeleteMessage/GetQueueAttributes` | the push-nudge queue and its DLQ — **deprecated**, see below |
 | `secretsmanager:GetSecretValue` | `scribl/<env>/*` only |
+
+The worker pods (`scribl-api-worker`, `APP_ROLE=worker`) run under the same `scribl-api`
+service account, so they get this role too; no separate association is needed.
+
+**SQS is deprecated.** The app now schedules push (daily nudge, admin campaigns) in-app on
+BullMQ over the existing Redis cluster. Once every environment runs that build, remove the
+`PushNudgeQueue` statement and the queue + DLQ (+ DLQ alarm) from `32-messaging`; keep that
+stack's SNS alarm topic.
 
 This mirrors dev's `scribl-api-pod` role. Pod Identity is better than the older IRSA approach:
 no OIDC trust policy to maintain, and the association is a first-class AWS resource you can see

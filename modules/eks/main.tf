@@ -258,6 +258,37 @@ resource "aws_iam_role" "cloudwatch_agent" {
   tags = var.tags
 }
 
+resource "aws_eks_access_entry" "tools_ec2" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = "arn:aws:iam::419717495525:role/scribl-stage-tools-ec2-role"
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "tools_ec2_admin" {
+  cluster_name  = aws_eks_cluster.this.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = aws_eks_access_entry.tools_ec2.principal_arn
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.tools_ec2]
+}
+
+resource "aws_security_group_rule" "eks_api_ingress" {
+  type        = "ingress"
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = [
+    "10.20.0.0/16",
+    "10.110.0.0/16" # AWS VPN CIDR
+  ]
+  description       = "Allow VPC and AWS VPN resources to access EKS Control Plane API"
+  security_group_id = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id # (or your existing SG reference)
+}
+
 resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
   role       = aws_iam_role.cloudwatch_agent.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"

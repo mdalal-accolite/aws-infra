@@ -92,3 +92,20 @@ variable "alarm_topic_arn" {
   type        = string
   default     = ""
 }
+
+variable "redis_parameter_group_family" {
+  description = "ElastiCache parameter group family; must match redis_engine_version's major."
+  type        = string
+  default     = "redis7"
+}
+
+variable "redis_maxmemory_policy" {
+  description = "Must stay noeviction or volatile-* while BullMQ shares this cluster."
+  type        = string
+  default     = "volatile-lru"
+
+  validation {
+    condition     = var.redis_maxmemory_policy == "noeviction" || startswith(var.redis_maxmemory_policy, "volatile-")
+    error_message = "allkeys-* would evict BullMQ job keys. Use noeviction or a volatile-* policy."
+  }
+}

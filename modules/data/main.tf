@@ -231,6 +231,23 @@ resource "aws_secretsmanager_secret_version" "redis_auth" {
   secret_string = random_password.redis_auth[0].result
 }
 
+# Explicit, not default.redis7: the same cluster backs the app's BullMQ job queues
+# (JOB_QUEUE_REDIS_URL). BullMQ keys carry no TTL, so volatile-* never evicts them,
+# while cache/throttler/session keys (all TTL'd) stay evictable. Never change this
+# to allkeys-* -- an evicted BullMQ key is a silently lost job.
+resource "aws_elasticache_parameter_group" "this" {
+  name        = "${var.name_prefix}-redis"
+  family      = var.redis_parameter_group_family
+  description = "Redis for ${var.name_prefix}: cache + BullMQ (volatile-lru)"
+
+  parameter {
+    name  = "maxmemory-policy"
+    value = var.redis_maxmemory_policy
+  }
+
+  tags = var.tags
+}
+
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = "${var.name_prefix}-redis"
   description          = "Redis cache for ${var.name_prefix}"
@@ -243,9 +260,10 @@ resource "aws_elasticache_replication_group" "this" {
   automatic_failover_enabled = var.redis_num_nodes > 1
   multi_az_enabled           = var.redis_num_nodes > 1
 
-  subnet_group_name  = aws_elasticache_subnet_group.this.name
-  security_group_ids = var.redis_security_group_ids
-  port               = 6379
+  subnet_group_name    = aws_elasticache_subnet_group.this.name
+  parameter_group_name = aws_elasticache_parameter_group.this.name
+  security_group_ids   = var.redis_security_group_ids
+  port                 = 6379
 
   at_rest_encryption_enabled = true
   transit_encryption_enabled = var.redis_transit_encryption_enabled

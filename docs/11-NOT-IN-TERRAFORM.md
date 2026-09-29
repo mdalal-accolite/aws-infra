@@ -19,9 +19,11 @@ key id, team id and bundle id. You said you do not have those, so the resource *
 matching IAM grant have been removed from the repo entirely rather than left as dead config.
 
 **Do instead:** create both platform applications in the SNS console when you have the Apple
-key. Then add an `sns:CreatePlatformEndpoint` / `sns:Publish` statement to
-`modules/iam/main.tf`'s `api_pod` policy, scoped to their ARNs. Roughly ten lines; ask and I
-will write it.
+key, then set `SNS_APNS_PLATFORM_APPLICATION_ARN` in the app's configmap. The IAM grant is
+already in place: `modules/iam/main.tf`'s `api_pod` policy allows `sns:CreatePlatformEndpoint`
+on this account's `app/*` and `Publish` / `Get|SetEndpointAttributes` / `DeleteEndpoint` on
+its `endpoint/*` (account-scoped because the platform application ARNs are not known to
+Terraform).
 
 ### A2. ACM certificates — REMOVED at your request
 

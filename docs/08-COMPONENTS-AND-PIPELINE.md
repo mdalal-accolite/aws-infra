@@ -22,7 +22,7 @@ Terraform state file:
 | `10-network` | VPC, subnets, IGW, NAT, route tables, VPC endpoints, security groups | `stage/10-network.tfstate` |
 | `20-edge` | S3 buckets, CloudFront (4 behaviours), OAC, WAF, access-log bucket | `stage/20-edge.tfstate` |
 | `30-registry` | ECR repositories + lifecycle policies | `stage/30-registry.tfstate` |
-| `32-messaging` | SQS queue, DLQ, SNS alarm topic | `stage/32-messaging.tfstate` |
+| `32-messaging` | SQS queue, DLQ (**deprecated**: push moved to BullMQ on Redis), SNS alarm topic | `stage/32-messaging.tfstate` |
 | `34-identity` | Cognito user pools and clients | `stage/34-identity.tfstate` |
 | `36-secrets` | Secrets Manager entries, API GW log group | `stage/36-secrets.tfstate` |
 | `38-email` | **SES** domain identity, DKIM, MAIL FROM, config set | `stage/38-email.tfstate` |

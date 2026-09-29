@@ -40,6 +40,31 @@ resource "aws_iam_role_policy_attachment" "ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy" "tools_ec2_eks_policy" {
+  name = "${aws_iam_role.this.name}-eks-policy"
+  role = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = "arn:aws:eks:us-east-1:419717495525:cluster/scribl-stage-eks"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:ListClusters"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "cloudwatch" {
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"

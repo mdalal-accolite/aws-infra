@@ -32,3 +32,8 @@ variable "ses_identity_arn" {
 }
 
 
+
+variable "sns_arn_prefix" {
+  description = "arn:aws:sns:<region>:<account> - scopes the pod's SNS push permissions to this account."
+  type        = string
+}

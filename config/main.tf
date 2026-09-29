@@ -28,7 +28,7 @@ locals {
       # --- switches ---
       enable_tools_ec2   = true
       enable_client_vpn  = false
-      enable_api_gateway = false
+      enable_api_gateway = true
       enable_rds_proxy   = true
       enable_waf         = true
       enable_ses         = true
@@ -55,7 +55,7 @@ locals {
       redis_num_nodes                 = 1
 
       # --- tools host ---
-      tools_instance_type      = "c8i.xlarge"
+      tools_instance_type      = "t3.small"
       tools_public_key_openssh = ""
 
       # --- github / ci ---
@@ -98,10 +98,10 @@ locals {
       cloudfront_price_class     = "PriceClass_All"
       # DNS name of the k8s-created ADMIN API NLB. Empty = the /v1/admin/* and
       # /admin* behaviours are not created.
-      admin_nlb_dns_name = ""
+      admin_nlb_dns_name = "scribl-stage-admin-api-b57c18e513d433e4.elb.us-east-1.amazonaws.com"
 
       # --- api gateway (set after the k8s NLB exists) ---
-      nlb_arn = ""
+      nlb_arn = "arn:aws:elasticloadbalancing:us-east-1:419717495525:loadbalancer/net/scribl-stage-api/30fd6dec12aad9d3"
 
       # --- client vpn (needs ACM certs) ---
       # AWS requires the client CIDR to be between /12 and /22. A /24 is
@@ -131,7 +131,7 @@ locals {
 
       enable_tools_ec2   = false
       enable_client_vpn  = false
-      enable_api_gateway = false
+      enable_api_gateway = true
       enable_rds_proxy   = true
       enable_waf         = true
       enable_ses         = true
@@ -153,7 +153,7 @@ locals {
       redis_node_type                 = "cache.m7g.large"
       redis_num_nodes                 = 2
 
-      tools_instance_type      = "c8i.xlarge"
+      tools_instance_type      = "t3.small"
       tools_public_key_openssh = ""
 
       github_org  = "ScriblOrg"
@@ -179,9 +179,9 @@ locals {
       cloudfront_certificate_arn = ""
       cloudfront_aliases         = ["mweb.scribl.co"]
       cloudfront_price_class     = "PriceClass_All"
-      admin_nlb_dns_name         = ""
+      admin_nlb_dns_name         = "scribl-stage-admin-api-b57c18e513d433e4.elb.us-east-1.amazonaws.com"
 
-      nlb_arn = ""
+      nlb_arn = "arn:aws:elasticloadbalancing:us-east-1:419717495525:loadbalancer/net/scribl-stage-api/30fd6dec12aad9d3"
 
       vpn_client_cidr_block                 = "10.110.0.0/22"
       vpn_server_certificate_arn            = ""
